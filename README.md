@@ -23,11 +23,11 @@ Key Features
 
 
 On program invocation, the following interactive menu below is presented to the user:
-                    [0] Read the input net-list
-                    [1] Perform fault collapsing
-                    [2] List fault classes
-                    [3] Simulate
-                    [4] Generate tests (D-Algorithm)
-                    [5] Generate tests (PODEM)
-                    [6] Generate tests (Boolean Satisfaibility)
-                    [7] Exit
+    - [0] Read the input net-list
+    - [1] Perform fault collapsing
+    - [2] List fault classes
+    - [3] Simulate
+    - [4] Generate tests (D-Algorithm)
+    - [5] Generate tests (PODEM)
+    - [6] Generate tests (Boolean Satisfaibility)
+    - [7] Exit
