@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Dict,  List, Optional
-# TODO: add easy to understand comments for this page in a short concise manner in a human readable, non robootic way
+from enum import Enum
+
+# Core data structures the rest of the tool uses to describe a circuit and its faults.
 @dataclass
 class Net:
     """A signal in the circuit."""
@@ -15,6 +17,7 @@ class Net:
 
     def add_sink(self, gate_name: str) -> None:
         """Register that `gate_name` reads this net."""
+        # Keep track of the sink list of each net
         if gate_name not in self.sinks:
             self.sinks.append(gate_name)            
 
@@ -25,10 +28,10 @@ class Gate:
     type: str
     inputs: List[str]
     output: str
-    level: Optional[int] = None  # Logic level in circuit
-    control: Optional[int] = None  # Used for fault modeling
-    inverted: bool = False  # Used for fault modeling
-    fault_list: Optional[List[Fault]] = None  # List of faults on this gate
+    level: Optional[int] = None  # depth of gate
+    control: Optional[int] = None  # controlling value used during simulation.
+    inverted: bool = False  # Marks gates that flip logic level for fault reasoning.
+    fault_list: Optional[List[Fault]] = None  # Faults affecting this gate's behavior.
 
 @dataclass
 class Circuit:
@@ -38,12 +41,14 @@ class Circuit:
     primary_inputs: List[str]
     primary_outputs: List[str]
     source: Optional[str] = None
-    fault_list: Optional[List[Fault]] = None # List of all faults in the circuit
+    fault_list: Optional[List[Fault]] = None  # All faults defined anywhere in the circuit.
 
     def net(self, name: str) -> Net:
+        # helper to fetch a net by name.
         return self.nets[name]
 
     def gate(self, name: str) -> Gate:
+        # helper to fetch a gate by name.
         return self.gates[name]
 
 @dataclass(frozen=True)
@@ -51,8 +56,58 @@ class Fault:
     """Represents a single stuck-at fault on a net."""
     net: str
     stuck_at: int  # 0 or 1
+    sink: Optional[str] = None  # Specific fanout branch; None means the net/stem
 
     def __str__(self) -> str:
-        return f"{self.net}-SA-{self.stuck_at}"
+        location = f"{self.net}->{self.sink}" if self.sink else self.net
+        return f"{location}-SA-{self.stuck_at}"
 
     __repr__ = __str__
+    
+    
+class SignalValue(Enum):
+    ZERO = 0
+    ONE = 1
+    X = 2
+    D = 3
+    D_BAR = 4
+
+    def invert(self) -> "SignalValue":
+        return {
+            SignalValue.ZERO: SignalValue.ONE,
+            SignalValue.ONE: SignalValue.ZERO,
+            SignalValue.X: SignalValue.X,
+            SignalValue.D: SignalValue.D_BAR,
+            SignalValue.D_BAR: SignalValue.D,
+        }[self]
+
+    def is_faulty(self) -> bool:
+        return self in {SignalValue.D, SignalValue.D_BAR}
+
+
+def signal_and(a: SignalValue, b: SignalValue) -> SignalValue:
+    if a == SignalValue.ZERO or b == SignalValue.ZERO:
+        return SignalValue.ZERO
+    if a == SignalValue.ONE:
+        return b
+    if b == SignalValue.ONE:
+        return a
+    if a == b:
+        return a
+    if {a, b} == {SignalValue.D, SignalValue.D_BAR}:
+        return SignalValue.ZERO
+    return SignalValue.X
+
+
+def signal_or(a: SignalValue, b: SignalValue) -> SignalValue:
+    if a == SignalValue.ONE or b == SignalValue.ONE:
+        return SignalValue.ONE
+    if a == SignalValue.ZERO:
+        return b
+    if b == SignalValue.ZERO:
+        return a
+    if a == b:
+        return a
+    if {a, b} == {SignalValue.D, SignalValue.D_BAR}:
+        return SignalValue.ONE
+    return SignalValue.X

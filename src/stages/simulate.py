@@ -1,21 +1,28 @@
-from core.fault_simulation import FaultSimulator, SimulationMode
+from core.fault_simulation import FaultSimulationReport, FaultSimulator, SimulationMode
 from models import Fault
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
-def _print_primary_output_values(circuit, simulator: FaultSimulator, vector: Dict[str, int]) -> None:
+def _print_primary_output_values(
+    circuit,
+    simulator: FaultSimulator,
+    vector: Dict[str, int],
+    observed_outputs: Optional[Dict[str, int]] = None,
+) -> None:
     if circuit is None or not getattr(circuit, "primary_outputs", None):
         return
     if not vector:
         return
 
-    good_values = simulator._evaluate_good(vector)  # type: ignore[attr-defined]
-    outputs = {po: good_values.get(po, 0) for po in circuit.primary_outputs}
+    good_values = simulator._evaluate_good(vector) 
+    expected_outputs = {po: good_values.get(po, 0) for po in circuit.primary_outputs}
+    outputs = observed_outputs or expected_outputs
 
     print("Primary outputs for this test vector:")
     for po in circuit.primary_outputs:
-        val = outputs.get(po, 0)
-        print(f"  {po}: expected={val}, observed={val}")
+        expected = expected_outputs.get(po, 0)
+        observed = outputs.get(po, expected)
+        print(f"  {po}: expected={expected}, observed={observed}")
 
 def _write_simulation_results_to_file(circuit, report, simulator: FaultSimulator) -> None:
     source = getattr(circuit, "source", None)
@@ -37,12 +44,15 @@ def _write_simulation_results_to_file(circuit, report, simulator: FaultSimulator
 
     po_values: Dict[str, int] = {}
     observed_po_values: Dict[Fault, Dict[str, int]] = {}
+    combined_outputs = getattr(report, "combined_outputs", None)
     if getattr(circuit, "primary_outputs", None) and report.vector:
         good_values = simulator._evaluate_good(report.vector)  # type: ignore[attr-defined]
         po_values = {po: good_values.get(po, 0) for po in circuit.primary_outputs}
         for fault in report.simulated_faults:
             propagated = report.propagation_map.get(fault)
-            if propagated:
+            if combined_outputs is not None:
+                observed = {po: combined_outputs.get(po, 0) for po in circuit.primary_outputs}
+            elif propagated:
                 observed = simulator._evaluate_faulty_outputs(report.vector, fault)  # type: ignore[attr-defined]
             else:
                 observed = po_values
@@ -74,10 +84,22 @@ def _write_simulation_results_to_file(circuit, report, simulator: FaultSimulator
     lines.append("")
 
     if po_values:
+        observed_summary: Dict[str, int] = {}
+        if combined_outputs is not None:
+            observed_summary = {
+                po: combined_outputs.get(po, 0) for po in circuit.primary_outputs
+            }
+        elif report.simulated_faults:
+            first_fault = report.simulated_faults[0]
+            observed_summary = observed_po_values.get(first_fault, po_values)
+        else:
+            observed_summary = po_values
+
         lines.append("Primary outputs (expected vs observed):")
         for po in circuit.primary_outputs:
-            val = po_values.get(po, 0)
-            lines.append(f"  {po}: expected={val}, observed={val}")
+            expected = po_values.get(po, 0)
+            observed = observed_summary.get(po, expected)
+            lines.append(f"  {po}: expected={expected}, observed={observed}")
         lines.append("")
 
     lines.append("Detected faults (with propagating outputs):")
@@ -314,8 +336,8 @@ def run_fault_simulation(circuit, collapse_result):
         return None
 
     report = simulator.run(mode, vector, faults=fault_targets)
-    _print_primary_output_values(circuit, simulator, vector)
+    observed_outputs = None
+    _print_primary_output_values(circuit, simulator, vector, observed_outputs)
     display_simulation_summary(report)
     _write_simulation_results_to_file(circuit, report, simulator)
     return report
-# TODO: Allow the user to choose between a single ssf each or multiple ssfs meaning both stuck at faults are present

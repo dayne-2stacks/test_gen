@@ -67,10 +67,27 @@ def main(file_path: str):
                 stage_manager.ensure(Stage.COLLAPSE, force=rerun_stage == Stage.COLLAPSE)
                 collapse_result = stage_manager.collapse_result
                 if collapse_result is not None:
-                    print("Collapsed fault classes:")
-                    for fault_class in collapse_result.classes:
-                        members = ", ".join(str(f) for f in sorted(fault_class.members, key=lambda f: (f.net, f.stuck_at)))
-                        print(f"  {fault_class.representative}: {members}")
+                    print("Equivalent fault classes removed:")
+                    dominated_map = collapse_result.dominated_faults
+                    fault_to_rep = collapse_result.fault_to_representative
+                    grouped = {rep: [] for rep in collapse_result.collapsed_faults}
+
+                    for fault, rep in fault_to_rep.items():
+                        while rep in dominated_map:
+                            rep = dominated_map[rep]
+                        grouped.setdefault(rep, []).append(fault)
+
+                    for representative in sorted(
+                        grouped, key=lambda f: (f.net, f.sink or "", f.stuck_at)
+                    ):
+                        members = " ".join(
+                            str(fault)
+                            for fault in sorted(
+                                grouped[representative],
+                                key=lambda f: (f.net, f.sink or "", f.stuck_at),
+                            )
+                        )
+                        print(f"  {representative}: {members}")
                 else:
                     print("Unable to list fault classes without a successful fault collapsing run.")
             elif user_input == "3":
@@ -88,7 +105,8 @@ def main(file_path: str):
                 print("Exiting...")
                 break
             elif user_input == "8":
-                file_path = input("Enter the new file path: ")
+                new_path = input("Enter the new file path: ").strip()
+                file_path = new_path if os.path.isfile(new_path) else resolve_input_file(new_path)
                 stage_manager.set_file_path(file_path)
                 print(f"New file path set to: {file_path}")
                 continue
@@ -107,8 +125,39 @@ def main(file_path: str):
                 os.system('clear')
 
 
+def resolve_input_file(initial_path: str) -> str:
+    file_path = initial_path
+    benchmarks_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "benchmarks"))
+    benchmark_files = []
+    if os.path.isdir(benchmarks_dir):
+        for entry in sorted(os.listdir(benchmarks_dir)):
+            candidate = os.path.join(benchmarks_dir, entry)
+            if os.path.isfile(candidate):
+                benchmark_files.append(candidate)
+
+    while not os.path.isfile(file_path):
+        print(f"File '{file_path}' does not exist.")
+        if benchmark_files:
+            print("Select a benchmark file:")
+            for idx, benchmark in enumerate(benchmark_files, 1):
+                rel_path = os.path.relpath(benchmark, os.getcwd())
+                print(f"  [{idx}] {rel_path}")
+        user_choice = input("Enter a valid file path or choose a benchmark number: ").strip()
+        if user_choice.isdigit():
+            candidate_idx = int(user_choice) - 1
+            if 0 <= candidate_idx < len(benchmark_files):
+                file_path = benchmark_files[candidate_idx]
+                continue
+        if user_choice:
+            file_path = user_choice
+    print(f"Using file: {file_path}")
+    return file_path
+
+
 if __name__ == "__main__":
 
     args = parse_arguments()
     print(f"File path provided: {args.file}")
-    main(args.file)
+    file_path = args.file if os.path.isfile(args.file) else resolve_input_file(args.file)
+    main(file_path)
+    
