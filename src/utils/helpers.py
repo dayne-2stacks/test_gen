@@ -223,8 +223,10 @@ class AtpgEngine:
 
     def manual(self, faults: Sequence[Fault]) -> List[TestVector]:
         """Generate vectors for explicitly provided faults."""
+        # Get list of active faults from the fault pool
         active_faults = set(self._fault_pool)
         results: List[TestVector] = []
+        # for each fault, generate a test vector and simulate detected faults
         for fault in faults:
             target = self._representative(fault)
             vector = self._engine.find_test(target)
@@ -234,10 +236,11 @@ class AtpgEngine:
 
     def automatic(self) -> List[TestVector]:
         """Cover the collapsed fault list, dropping detected faults as vectors are found."""
+        # lists to keep track of faults to be tested
         remaining_stack = list(self._fault_pool)
         remaining_active = set(self._fault_pool)
         results: List[TestVector] = []
-
+        # while there are still faults to process select a fault and generate a test vector
         while remaining_stack:
             fault = remaining_stack.pop()
             if fault not in remaining_active:
@@ -246,6 +249,7 @@ class AtpgEngine:
             remaining_active.discard(fault)
             vector = self._engine.find_test(fault)
             detected = self._simulate_detected(vector, remaining_active, fault)
+            #  if detected faults, remove them from the remaining active set
             if detected:
                 for detected_fault in detected:
                     remaining_active.discard(detected_fault)
@@ -258,22 +262,28 @@ class AtpgEngine:
         candidate_faults: Collection[Fault],
         target: Fault,
     ) -> Tuple[Fault, ...]:
+        """Simulate the given vector and return detected faults from the candidate set."""
+        # if no test vector, return empty value
         if vector is None:
             return ()
+        # Prepare the list of faults to simulate
         if candidate_faults:
             faults = list(candidate_faults)
+            # if target fault is not in candidate faults, add it
             if target not in candidate_faults:
                 faults.append(target)
         else:
             faults = [target]
-
+        # Run the fault simulation with the prepared fault list
         report = self._simulator.run(vector, faults=faults)
         return tuple(report.detected_faults)
-
+     
     def _representative(self, fault: Fault) -> Fault:
+        """ Get the representative fault from the collapsed set."""
         return self.collapse_result.fault_to_representative.get(fault, fault)
 
     def _select_algorithm(self, algorithm: Any) -> Any:
+        """Select between D-Algorithm, PODEM, or SAT ATPG algorithms."""
         if isinstance(algorithm, (DAlgorithmEngine, PodemEngine, SatAtpg)):
             return algorithm
 

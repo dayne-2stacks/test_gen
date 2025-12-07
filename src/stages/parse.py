@@ -8,14 +8,17 @@ def read_netlist(file_path: str):
     Parse the netlist from the given file path and print summary information.
     """
     try:
+        # use parser to parse netlist and print details
         circuit = parse_netlist(file_path)
         print(f"Successfully parsed netlist from {file_path}")
         print(f"Primary Inputs: {circuit.primary_inputs}")
         print(f"Primary Outputs: {circuit.primary_outputs}")
         print(f"Gates: {list(circuit.gates.keys())}")
         print("")
+        # write outputs to file
         _write_circuit_details(circuit)
         return circuit
+    # handle error if any
     except NetlistParseError as e:
         print(f"Error parsing netlist: {e}")
         return None
@@ -24,6 +27,7 @@ def _write_circuit_details(circuit):
     """
     Write a summary of the parsed circuit to an output file and print details.
     """
+    # gather circuit details foor logging to file
     source = getattr(circuit, "source", None) or "circuit"
     primary_inputs = ", ".join(circuit.primary_inputs) if circuit.primary_inputs else "-"
     primary_outputs = ", ".join(circuit.primary_outputs) if circuit.primary_outputs else "-"

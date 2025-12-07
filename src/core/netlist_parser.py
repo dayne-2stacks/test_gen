@@ -91,7 +91,7 @@ class NetlistParser:
             output_name = tokens[0]
             gate_type = tokens[1].lower()
             input_names = tokens[2:]
-
+            # Check for multiple definitions of the same gate/net
             if output_name in gates:
                 raise NetlistParseError(
                     f"Line {line_no}: multiple definitions for gate/net '{output_name}'."
@@ -106,7 +106,7 @@ class NetlistParser:
             gates[output_name] = gate
 
             out_net = nets.setdefault(output_name, Net(name=output_name))
-
+            # Check if primary input is driven by a gate
             if out_net.is_primary_input:
                 raise NetlistParseError(
                     f"Line {line_no}: primary input '{output_name}' driven by gate."
@@ -116,11 +116,11 @@ class NetlistParser:
                     f"Line {line_no}: net '{output_name}' already driven by '{out_net.source}'."
                 )
             out_net.source = output_name
-
+            # Register sinks for input nets
             for input_name in input_names:
                 net = nets.setdefault(input_name, Net(name=input_name))
                 net.add_sink(output_name)
-
+        # Return the constructed Circuit object
         return Circuit(
             nets=nets,
             gates=gates,
@@ -128,6 +128,7 @@ class NetlistParser:
             primary_outputs=primary_outputs,
         )
 
+    # Helperrs to parse lines and comments
     @staticmethod
     def _split_comment(line: str) -> tuple[str, str]:
         if "$" not in line:
@@ -146,7 +147,7 @@ class NetlistParser:
         with path.open("r", encoding="utf-8", errors="ignore") as file:
             return file.readlines()
 
-
+# Runs the netlist parser
 def parse_netlist(path: str | Path) -> Circuit:
     """Initialize a parser and parse a netlist from disk."""
     return NetlistParser().parse_file(path)

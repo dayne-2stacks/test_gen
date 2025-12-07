@@ -21,7 +21,7 @@ def _print_primary_output_values(
     good_values = simulator._evaluate_good(vector)
     expected_outputs = {po: good_values.get(po, 0) for po in circuit.primary_outputs}
     outputs = observed_outputs or expected_outputs
-
+    #  Display primary output values
     print("Primary outputs for this test vector:")
     for po in circuit.primary_outputs:
         expected = expected_outputs.get(po, 0)
@@ -33,6 +33,7 @@ def _write_simulation_results_to_file(circuit, report, simulator: FaultSimulator
     """
     Write simulation results to an output file and print summary information.
     """
+    # Determine output file path
     source = getattr(circuit, "source", None)
     if source:
         input_path = Path(source)
@@ -42,7 +43,7 @@ def _write_simulation_results_to_file(circuit, report, simulator: FaultSimulator
         output_path = output_dir / f"{input_path.name}.sim.out"
     else:
         output_path = Path("simulation_results.out")
-
+    #  run serial simulation report writing
     mode_label = "Serial"
     vector_summary = (
         ", ".join(f"{pi}={val}" for pi, val in report.vector.items())
@@ -53,9 +54,11 @@ def _write_simulation_results_to_file(circuit, report, simulator: FaultSimulator
     po_values: Dict[str, int] = {}
     observed_po_values: Dict[Fault, Dict[str, int]] = {}
     combined_outputs = getattr(report, "combined_outputs", None)
+    #  Prepare primary output values for each simulated fault
     if getattr(circuit, "primary_outputs", None) and report.vector:
         good_values = simulator._evaluate_good(report.vector)  # type: ignore[attr-defined]
         po_values = {po: good_values.get(po, 0) for po in circuit.primary_outputs}
+        # For each simulated fault, determine observed outputs
         for fault in report.simulated_faults:
             propagated = report.propagation_map.get(fault)
             if combined_outputs is not None:
@@ -67,6 +70,7 @@ def _write_simulation_results_to_file(circuit, report, simulator: FaultSimulator
             observed_po_values[fault] = observed
 
     def _format_outputs(values: Dict[str, int]) -> str:
+        """Format primary output values for display."""
         return ", ".join(f"{po}={values.get(po, 0)}" for po in circuit.primary_outputs)
     expected_formatted = _format_outputs(po_values) if po_values else ""
 
@@ -74,6 +78,7 @@ def _write_simulation_results_to_file(circuit, report, simulator: FaultSimulator
     lines.append(f"Simulation mode: {mode_label}")
     lines.append(f"Input vector: {vector_summary}")
     lines.append(f"Simulated fault classes: {len(report.simulated_faults)}")
+    # Detail each simulated fault class
     if report.simulated_faults:
         lines.append("Fault class details:")
         for fault in report.simulated_faults:
@@ -90,7 +95,7 @@ def _write_simulation_results_to_file(circuit, report, simulator: FaultSimulator
     lines.append(f"Detected faults: {len(report.detected_faults)}")
     lines.append(f"Undetected faults: {len(report.undetected_faults)}")
     lines.append("")
-
+    # Detail detected and undetected faults
     if po_values:
         observed_summary: Dict[str, int] = {}
         if combined_outputs is not None:
@@ -139,12 +144,14 @@ def _write_simulation_results_to_file(circuit, report, simulator: FaultSimulator
     print(f"Simulation results written to {output_path}")
 
 def prompt_simulation_scope():
+    """ Prompt user to select fault simulation scope. """
     print("""
         Fault Scope:
         [0] Simulate all single stuck-at faults
         [1] Manually select single stuck-at faults
         [2] Cancel
         """)
+    # If auto selected, return all faults; if manual, prompt for faults; if cancel, return None
     selection = input("Choose simulation scope (0-2): ").strip()
     if selection == "0":
         return "auto"
@@ -154,17 +161,20 @@ def prompt_simulation_scope():
 
 
 def prompt_input_vector(primary_inputs):
+    """ Prompt user to enter a primary input vector. """
     if not primary_inputs:
         print("Circuit does not have primary inputs; using empty vector.")
         return {}
 
     prompt = ", ".join(primary_inputs)
+    # Prompt user until valid input is received
     while True:
         print(f"There are {len(primary_inputs)} primary inputs. Please insert a {len(primary_inputs)}-bit vector.")
         raw = input(
             f"Enter binary values for [{prompt}] (e.g., 0101) or 'q' to cancel: "
         ).strip()
         cleaned = "".join(raw.split())
+        # handle input cases
         if not cleaned:
             print("Input vector cannot be empty.")
             continue
@@ -177,6 +187,7 @@ def prompt_input_vector(primary_inputs):
 
 
 def display_simulation_summary(report):
+    """ Display a summary of the fault simulation results. """
     vector_summary = (
         ", ".join(f"{pi}={val}" for pi, val in report.vector.items())
         if report.vector
@@ -187,7 +198,7 @@ def display_simulation_summary(report):
     print(
         f"Detected {len(report.detected_faults)} of {total_faults} simulated fault classes."
     )
-
+    # Provide previews of detected and undetected faults
     def preview(label, faults):
         if not faults:
             return
@@ -226,6 +237,7 @@ def prompt_fault_list(
     dominance_map: Optional[Dict[Fault, Fault]] = None,
     allow_both: bool = False,
 ):
+    """ Prompt user to select faults from a given list. """
     total = len(available_faults)
     if total:
         preview = ", ".join(str(fault) for fault in available_faults[:min(6, total)])
@@ -237,6 +249,7 @@ def prompt_fault_list(
     available_set = set(available_faults)
     selected: List[Fault] = []
     seen: Set[Fault] = set()
+    # Prompt user until they finish adding faultts or cancel
     while True:
         hint = "<net> <stuck_at|both>" if allow_both else "<net> <stuck_at>"
         raw = input(
@@ -262,7 +275,7 @@ def prompt_fault_list(
         else:
             print("Please provide a net name followed by 0, 1, or 'both' (e.g., N3 both).")
             continue
-
+        # Map requested faults to their representatives
         canonical_faults: List[Fault] = []
         for fault in requested_faults:
             canonical = representative_map.get(fault, fault) if representative_map else fault
@@ -279,13 +292,14 @@ def prompt_fault_list(
                 unique_canonical.append(fault)
 
         missing = [fault for fault in unique_canonical if fault not in available_set]
+        # Check for missing faults
         if missing:
             if allow_both and len(unique_canonical) == 2:
                 print(f"One or both faults for '{net}' are not available in the {label} set.")
             else:
                 print(f"{unique_canonical[0]} is not available in the {label} set.")
             continue
-
+        # Add selected faults, avoiding duplicates
         for canonical in unique_canonical:
             if canonical in seen:
                 print(f"{canonical} was already added.")
@@ -296,13 +310,14 @@ def prompt_fault_list(
 
 
 def run_fault_simulation(circuit, collapse_result):
+    """ Run fault simulation on the given circuit with user-specified options. """
     fault_scope = prompt_simulation_scope()
     if fault_scope is None:
         print("Simulation cancelled.")
         return None
-
+    # Set up fault simulator
     simulator = FaultSimulator(circuit, collapse_result)
-
+    # Determine fault targets based on user selection
     if fault_scope == "auto":
         fault_targets = simulator.all_faults
     else:
@@ -316,12 +331,12 @@ def run_fault_simulation(circuit, collapse_result):
             print("Simulation cancelled.")
             return None
         fault_targets = selected_faults or []
-
+    # Prompt user for input vector
     vector = prompt_input_vector(circuit.primary_inputs)
     if vector is None:
         print("Simulation cancelled.")
         return None
-
+    # Generate and report output
     report = simulator.run(vector, faults=fault_targets)
     observed_outputs = None
     _print_primary_output_values(circuit, simulator, vector, observed_outputs)

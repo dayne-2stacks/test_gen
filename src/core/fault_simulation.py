@@ -12,12 +12,6 @@ from models import Circuit, Fault
 class FaultSimulationReport:
     """
     Report object for fault simulation results.
-    Attributes:
-        vector: Input vector applied.
-        detected_faults: List of detected faults.
-        undetected_faults: List of undetected faults.
-        simulated_faults: All faults simulated.
-        propagation_map: Mapping of faults to output propagation.
     """
     vector: Dict[str, int]
     detected_faults: List[Fault]
@@ -71,15 +65,16 @@ class FaultSimulator:
             simulated_faults=simulation_faults,
             propagation_map=propagation_map
         )
-
+    # List of all faults
     @property
     def all_faults(self) -> List[Fault]:
         return list(self._all_faults)
-
+    # List of collapsed faults
     @property
     def collapsed_faults(self) -> List[Fault]:
         return list(self._collapsed_faults)
 
+    # Collect all faults in the circuits
     def _collect_all_faults(self) -> List[Fault]:
         faults = list(self.collapse_result.fault_to_representative.keys())
         if not faults:
@@ -162,6 +157,7 @@ class FaultSimulator:
     # ------------------------------------------------------------------
 
     def _evaluate_good(self, pi_values: Dict[str, int]) -> Dict[str, int]:
+        """Evaluate the circuit outputs for given primary input values without any faults."""
         values: Dict[str, int] = {}
         for pi in self.circuit.primary_inputs:
             values[pi] = pi_values.get(pi, 0)
@@ -174,6 +170,7 @@ class FaultSimulator:
 
     @staticmethod
     def _evaluate_gate_scalar(gate_type: str, inputs: Sequence[int]) -> int:
+        """ Evaluate a gate's output value given its type and input values. """
         gate_type = gate_type.lower()
         if gate_type in {"and", "nand"}:
             value = 1
@@ -196,9 +193,10 @@ class FaultSimulator:
         raise ValueError(f"Unsupported gate type: {gate_type}")
 
     def _topological_sort(self) -> List[str]:
+        """ Sort gates in topological order for simulation. """
         graph: Dict[str, List[str]] = {name: [] for name in self.circuit.gates}
         indegree: Dict[str, int] = {name: 0 for name in self.circuit.gates}
-
+        # Build the graph and indegree counts
         for gate in self.circuit.gates.values():
             for inp in gate.inputs:
                 source = self.circuit.nets[inp].source
@@ -208,7 +206,7 @@ class FaultSimulator:
 
         queue: deque[str] = deque([name for name, deg in indegree.items() if deg == 0])
         order: List[str] = []
-
+        # Perform topological sort
         while queue:
             gate_name = queue.popleft()
             order.append(gate_name)

@@ -20,7 +20,7 @@ def parse_arguments():
     Parse command-line arguments for the ATG script.
     """
     parser = argparse.ArgumentParser(description="Automatic Test Generation (ATG) script.")
-    parser.add_argument("--file", type=str, required=True, help="Path to the file.")
+    parser.add_argument("file", type=str, nargs="?", default=None, help="Path to the file (optional).")
     return parser.parse_args()
 
 
@@ -55,6 +55,7 @@ def main(file_path: str):
         [7] Exit
         [8] Use a different input file
         """)
+        print(f"Current file: {stage_manager.file_path}")
         # Get user input and map to stage
         user_input = ""
         try:
@@ -68,7 +69,7 @@ def main(file_path: str):
                 "5": Stage.PODEM,
                 "6": Stage.SAT,
             }.get(user_input)
-            # Based on input, run correct stage
+            # Based on input, run correct stage. All stages handled by stage manager
             if user_input == "0":
                 print("Reading the input net-list...")
                 stage_manager.ensure(Stage.PARSE, force=rerun_stage == Stage.PARSE)
@@ -82,12 +83,12 @@ def main(file_path: str):
                     dominated_map = collapse_result.dominated_faults
                     fault_to_rep = collapse_result.fault_to_representative
                     grouped = {rep: [] for rep in collapse_result.collapsed_faults}
-
+                    #  for all faults, find their final representative after dominance
                     for fault, rep in fault_to_rep.items():
                         while rep in dominated_map:
                             rep = dominated_map[rep]
                         grouped.setdefault(rep, []).append(fault)
-
+                    # for each representative, list its members
                     for representative in sorted(
                         grouped, key=lambda f: (f.net, f.sink or "", f.stuck_at)
                     ):
@@ -127,6 +128,7 @@ def main(file_path: str):
             print("\nExiting...")
             break
         finally:
+            # Clear the console unless exiting
             if user_input != "7":
                 sys.stdout.flush()
                 try:
@@ -135,11 +137,12 @@ def main(file_path: str):
                     pass
                 os.system('clear')
 
-
+# If a valid file path is not provided, prompt the user to select one from benchmarks
 def resolve_input_file(initial_path: str) -> str:
     file_path = initial_path
     benchmarks_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "benchmarks"))
     benchmark_files = []
+    # Get all files in benchmarks directory
     if os.path.isdir(benchmarks_dir):
         for entry in sorted(os.listdir(benchmarks_dir)):
             candidate = os.path.join(benchmarks_dir, entry)
@@ -161,14 +164,19 @@ def resolve_input_file(initial_path: str) -> str:
                 continue
         if user_choice:
             file_path = user_choice
-    print(f"Using file: {file_path}")
+    print(f"Using netlist: {file_path}")
     return file_path
 
 
 if __name__ == "__main__":
-
+    # parse args from python call
     args = parse_arguments()
-    print(f"File path provided: {args.file}")
-    file_path = args.file if os.path.isfile(args.file) else resolve_input_file(args.file)
+    # If file path provided, use it; otherwise, prompt user to select one
+    if args.file:
+        print(f"File path provided: {args.file}")
+        file_path = args.file if os.path.isfile(args.file) else resolve_input_file(args.file)
+    else:
+        file_path = resolve_input_file("")
+    # Run the main ATG process
     main(file_path)
     

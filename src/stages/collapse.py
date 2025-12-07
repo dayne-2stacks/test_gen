@@ -7,21 +7,26 @@ def perform_fault_collapsing(circuit, file_path):
     """
     Perform fault collapsing on the given circuit.
     """
+    # if circuit is not provided, read from file_path and parse
     if circuit is None:
         print("Reading the input net-list...")
         circuit = read_netlist(file_path)
+        # If still None after attempting to read, return
         if circuit is None:
             print("Unable to perform fault collapsing without a valid circuit.")
             return None, None
 
     print("Performing fault collapsing...")
+    # Init the fault collapser and collapse faults
     collapser = FaultCollapser(circuit)
     collapse_result = collapser.collapse()
+    # prepare output to be printed and logged
     report, total_fault_lines, summary_lines = prepare_fault_collapsing_output(
         collapse_result
     )
     collapsed_count = report.collapsed_count
     dominated_count = report.dominated_count
+    # report fauls
     print(f"Total faults: {report.total_faults}")
     print(f"Collapsed fault classes: {collapsed_count}")
     print(f"Dominated fault classes removed: {dominated_count}")
@@ -41,6 +46,7 @@ def perform_fault_collapsing(circuit, file_path):
 
     # Write results to output files
     source = getattr(circuit, "source", None) or file_path
+    # if there is a circuit source, create output directory and write files
     if source:
         root_dir = Path(__file__).resolve().parents[2]
         circuit_dir = root_dir / "outputs" / Path(source).name

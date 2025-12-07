@@ -52,6 +52,7 @@ def _prompt_fault(circuit, collapse_result) -> Optional[Fault]:
 
 
 def _format_vector(vector: Optional[Dict[str, int]], primary_inputs: Sequence[str]) -> str:
+    """ Format a test vector for display or output. """
     if vector is None:
         return "none"
     ordered = [(pi, vector.get(pi, 0)) for pi in primary_inputs]
@@ -59,6 +60,7 @@ def _format_vector(vector: Optional[Dict[str, int]], primary_inputs: Sequence[st
 
 
 def _render_test_vector(circuit, test_vector: TestVector) -> None:
+    """ Render a test vector's details to the console."""
     if test_vector.vector is None:
         print(f"No SAT test vector found for {test_vector.fault}.")
         return
@@ -74,6 +76,7 @@ def _render_test_vector(circuit, test_vector: TestVector) -> None:
 
 
 def _collect_manual_faults(circuit, collapse_result) -> List[Fault]:
+    """ Collect user-specified faults for manual SAT testing. """
     faults: List[Fault] = []
     while True:
         fault = _prompt_fault(circuit, collapse_result)
@@ -87,6 +90,7 @@ def _collect_manual_faults(circuit, collapse_result) -> List[Fault]:
 
 
 def _write_test_vectors(circuit, vectors: Sequence[TestVector]) -> Path:
+    """ Write test vectors to an output file and return the file path. """
     source = getattr(circuit, "source", None) or "circuit"
     circuit_name = Path(source).name
     root_dir = Path(__file__).resolve().parents[2]
@@ -111,6 +115,7 @@ def _write_test_vectors(circuit, vectors: Sequence[TestVector]) -> Path:
 
 
 def _summarize_faults(faults, limit=6) -> str:
+    """ Summarize a list of faults for display """
     if not faults:
         return "none"
     preview = ", ".join(str(f) for f in faults[:limit])
@@ -119,6 +124,7 @@ def _summarize_faults(faults, limit=6) -> str:
 
 
 def _run_manual_mode(engine: AtpgEngine, circuit, collapse_result):
+    """Run SAT in manual mode for user-selected faults."""
     faults = _collect_manual_faults(circuit, collapse_result)
     if not faults:
         print("Boolean SAT generation cancelled.")
@@ -134,6 +140,7 @@ def _run_manual_mode(engine: AtpgEngine, circuit, collapse_result):
 
 
 def _run_automatic_mode(engine: AtpgEngine, circuit, collapse_result):
+    """Run SAT in automatic mode for all collapsed faults."""
     total = len(collapse_result.collapsed_faults)
     if total == 0:
         print("No collapsed faults were found in the circuit.")
@@ -155,7 +162,7 @@ def _run_automatic_mode(engine: AtpgEngine, circuit, collapse_result):
         all_faults - detected_faults, key=lambda f: (f.net, f.sink or "", f.stuck_at)
     )
     detected_total = total - len(undetected)
-
+    # Prepare summary output and print to console
     print(
         f"SAT detection summary: detected {detected_total}/{total} collapsed faults "
         f"using {vectors_found} vector(s)."
@@ -185,6 +192,7 @@ def _run_automatic_mode(engine: AtpgEngine, circuit, collapse_result):
 
 
 def run_boolean_satisfiability(circuit, collapse_result):
+    """ Main entry point to run Boolean SAT ATPG stage. """
     if circuit is None:
         print("Please parse a circuit before running Boolean SAT generation.")
         return None

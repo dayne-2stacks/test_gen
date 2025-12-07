@@ -4,7 +4,6 @@ from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
 from models import Circuit, Fault, Gate
 
-
 class PodemEngine:
     """
     PODEM test generation for single stuck-at faults.
@@ -16,6 +15,8 @@ class PodemEngine:
         """
         self.circuit = circuit
         self._topological_order = self._topological_sort()
+        self._last_d_frontier: List[Gate] = []
+        self._last_j_frontier: List[Gate] = []
 
     def find_test(self, fault: Fault) -> Optional[Dict[str, int]]:
         """
@@ -73,29 +74,26 @@ class PodemEngine:
             return False
 
         objective_net, objective_val = objective
-        pi, pi_val = self._backtrace(objective_net, objective_val, values, assignments)
-        if pi not in self.circuit.primary_inputs:
+        pi_candidates = self._backtrace(objective_net, objective_val, values, assignments)
+        if not pi_candidates:
             return False
-        original = assignments.get(pi)
 
-        if original is not None and original != pi_val:
-            return False
-        assignments[pi] = pi_val
-        values = self._imply(assignments, fault)
-        if self._podem(assignments, values, fault, seen_states):
-            return True
+        base_assignments = dict(assignments)
+        for pi_net, pi_val in pi_candidates:
+            if pi_net not in self.circuit.primary_inputs:
+                continue
+            if base_assignments.get(pi_net) is not None:
+                continue
+            for trial_val in (pi_val, 1 - pi_val):
+                assignments.clear()
+                assignments.update(base_assignments)
+                assignments[pi_net] = trial_val
+                updated_values = self._imply(assignments, fault)
+                if self._podem(assignments, updated_values, fault, seen_states):
+                    return True
 
-        if original is not None:
-            return False
-        assignments[pi] = 1 - pi_val
-        values = self._imply(assignments, fault)
-        if self._podem(assignments, values, fault, seen_states):
-            return True
-
-        if original is None:
-            assignments.pop(pi, None)
-        else:
-            assignments[pi] = original
+        assignments.clear()
+        assignments.update(base_assignments)
         return False
 
     # ------------------------------------------------------------------
@@ -112,6 +110,7 @@ class PodemEngine:
             desired = 1 - fault.stuck_at
             return fault.net, desired
 
+        self._collect_j_frontier(values, fault)
         frontier_gate = frontier_gate or self._select_d_frontier(values, fault)
         if frontier_gate is None or not frontier_gate.inputs:
             return None
@@ -130,14 +129,8 @@ class PodemEngine:
         values: Dict[str, Tuple[Optional[int], Optional[int]]],
         fault: Fault,
     ) -> Optional[Gate]:
-        for gate in self.circuit.gates.values():
-            good_out, faulty_out = values.get(gate.output, (None, None))
-            if not (good_out is None or faulty_out is None):
-                continue
-            for inp in gate.inputs:
-                if self._is_d_or_dbar(self._gate_input_value(gate, inp, values, fault)):
-                    return gate
-        return None
+        frontier = self._collect_d_frontier(values, fault)
+        return frontier[0] if frontier else None
 
     def _gate_input_value(
         self,
@@ -178,36 +171,43 @@ class PodemEngine:
         self,
         net: str,
         value: int,
-        values: Dict[str, Tuple[Optional[int], Optional[int]]],
+        _values: Dict[str, Tuple[Optional[int], Optional[int]]],
         assignments: Dict[str, int],
-    ) -> Tuple[str, int]:
-        current_net = net
-        desired = value
+    ) -> List[Tuple[str, int]]:
+        paths: List[Tuple[str, int]] = []
+        seen: Set[Tuple[str, int]] = set()
 
-        while current_net not in self.circuit.primary_inputs:
-            source = self.circuit.nets[current_net].source
-            if source is None:
-                break
-            gate = self.circuit.gates[source]
+        def dfs(current_net: str, required: int) -> None:
+            key = (current_net, required)
+            if key in seen:
+                return
+            seen.add(key)
+            if current_net in self.circuit.primary_inputs:
+                paths.append(key)
+                return
+            net_obj = self.circuit.nets.get(current_net)
+            if net_obj is None or net_obj.source is None:
+                return
+            gate = self.circuit.gates.get(net_obj.source)
+            if gate is None or not gate.inputs:
+                return
+
             gate_type = gate.type.lower()
-            inverted = gate_type in {"nand", "nor", "not", "inv", "inverter"}
-            if inverted:
-                desired ^= 1
+            if gate_type in {"buf", "buffer"}:
+                dfs(gate.inputs[0], required)
+                return
+            if gate_type in {"not", "inv", "inverter"}:
+                dfs(gate.inputs[0], 1 - required)
+                return
 
-            if not gate.inputs:
-                break
-            candidate: Optional[str] = None
-            fallback = gate.inputs[0]
-            for inp in gate.inputs:
-                assigned = assignments.get(inp)
-                if assigned is None:
-                    candidate = inp
-                    break
-                if assigned == desired and candidate is None:
-                    candidate = inp
-            current_net = candidate or fallback
+            inverted = gate_type in {"nand", "nor"}
+            next_value = required ^ 1 if inverted else required
+            ordered_inputs = self._order_backtrace_inputs(gate, next_value, assignments)
+            for inp in ordered_inputs:
+                dfs(inp, next_value)
 
-        return current_net, desired
+        dfs(net, value)
+        return paths
 
     def _imply(
         self,
@@ -278,6 +278,66 @@ class PodemEngine:
         if inverted and base_out is not None:
             return 1 - base_out
         return base_out
+
+    def _order_backtrace_inputs(
+        self, gate: Gate, desired: int, assignments: Dict[str, int]
+    ) -> List[str]:
+        if not gate.inputs:
+            return []
+        unassigned: List[str] = []
+        matching: List[str] = []
+        others: List[str] = []
+        for inp in gate.inputs:
+            assigned = assignments.get(inp)
+            if assigned is None:
+                unassigned.append(inp)
+            elif assigned == desired:
+                matching.append(inp)
+            else:
+                others.append(inp)
+
+        ordered: List[str] = []
+        for group in (unassigned, matching, others):
+            for net in group:
+                if net not in ordered:
+                    ordered.append(net)
+        return ordered or gate.inputs[:]
+
+    def _collect_d_frontier(
+        self,
+        values: Dict[str, Tuple[Optional[int], Optional[int]]],
+        fault: Fault,
+    ) -> List[Gate]:
+        frontier: List[Gate] = []
+        for gate in self.circuit.gates.values():
+            good_out, faulty_out = values.get(gate.output, (None, None))
+            if good_out is not None and faulty_out is not None:
+                continue
+            for inp in gate.inputs:
+                if self._is_d_or_dbar(self._gate_input_value(gate, inp, values, fault)):
+                    frontier.append(gate)
+                    break
+        self._last_d_frontier = frontier
+        return frontier
+
+    def _collect_j_frontier(
+        self,
+        values: Dict[str, Tuple[Optional[int], Optional[int]]],
+        fault: Fault,
+    ) -> List[Gate]:
+        frontier: List[Gate] = []
+        for gate in self.circuit.gates.values():
+            good_out, faulty_out = values.get(gate.output, (None, None))
+            if good_out is not None and faulty_out is not None:
+                continue
+            if any(
+                self._is_d_or_dbar(self._gate_input_value(gate, inp, values, fault))
+                for inp in gate.inputs
+            ):
+                continue
+            frontier.append(gate)
+        self._last_j_frontier = frontier
+        return frontier
 
     # ------------------------------------------------------------------
     # Utility checks

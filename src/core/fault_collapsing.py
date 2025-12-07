@@ -89,11 +89,6 @@ def prepare_fault_collapsing_output(
 ) -> tuple["FaultCollapsingReport", List[str], List[str]]:
     """
     Normalize collapse results into printable/file-ready blocks.
-
-    Returns:
-        report: structured equivalence/dominance breakdown.
-        total_fault_lines: sorted list of every enumerated fault as strings.
-        summary_lines: formatted summary matching the standard collapse stdout.
     """
     report = build_fault_collapsing_report(result)
     total_fault_lines = [
@@ -109,15 +104,18 @@ class FaultCollapsingReport:
     dominance_relations: Dict[Fault, List[Fault]]
     dominance_edges: Dict[Fault, Fault]
 
+    # Number of collapsed fault classes
     @property
     def collapsed_count(self) -> int:
         return len(self.equivalence_classes)
 
+    # Number of dominated fault classess
     @property
     def dominated_count(self) -> int:
         return len(self.dominance_edges)
 
     def equivalence_lines(self) -> List[str]:
+        """ Generate lines describing equivalence classes. """
         lines: List[str] = []
         for representative in sorted(self.equivalence_classes, key=_fault_sort_key):
             members = self.equivalence_classes[representative]
@@ -126,6 +124,7 @@ class FaultCollapsingReport:
         return lines
 
     def dominance_lines(self) -> List[str]:
+        """ Generate lines describing dominance relations. """
         lines: List[str] = []
         for dominator in sorted(self.dominance_relations, key=_fault_sort_key):
             dominated = self.dominance_relations[dominator]
@@ -136,6 +135,7 @@ class FaultCollapsingReport:
         return lines
 
     def summary_lines(self) -> List[str]:
+        """ Generate summary lines for the collapsing report. """
         return [
             f"Total faults: {self.total_faults}",
             f"Collapsed fault classes: {self.collapsed_count}",
@@ -171,10 +171,6 @@ def build_fault_collapsing_report(result: "CollapseResult") -> FaultCollapsingRe
 class FaultCollapser:
     """
     Collapse single stuck-at faults for a parsed circuit.
-
-    Usage:
-        collapser = FaultCollapser(circuit)
-        result = collapser.collapse()
     """
 
     def __init__(self, circuit: Circuit):
@@ -190,16 +186,19 @@ class FaultCollapser:
         }
 
     def collapse(self) -> CollapseResult:
+        """Perform fault collapsing on the circuit."""
+        # Initialize faults and union-find structure
         self._faults = list(self._enumerate_faults())
         self._fault_set = set(self._faults)
         self._uf = UnionFind(self._faults)
-
+        # Apply equivalence rules
         self._apply_equivalence_rules()
         classes = self._collect_classes()
-
+        # Identify dominated faults
         fault_to_rep_all = {
             fault: rep for rep, members in classes.items() for fault in members
         }
+        # Build dominance report
         dominance_report, dominated_classes = self._identify_dominated_faults(
             fault_to_rep_all
         )
@@ -208,7 +207,7 @@ class FaultCollapser:
         ]
         surviving = [FaultClass(rep, members) for rep, members in surviving_items]
         fault_to_rep = {fault: rep for rep, members in classes.items() for fault in members}
-
+        # Return final collapse result
         return CollapseResult(
             classes=sorted(
                 surviving,
