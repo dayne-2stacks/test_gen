@@ -8,12 +8,29 @@ from typing import Dict, List, Sequence
 from .fault_collapsing import CollapseResult
 from models import Circuit, Fault
 
+
 class SimulationMode(Enum):
+    """
+    Simulation modes for fault simulation.
+    SERIAL: Simulate faults one at a time.
+    PARALLEL: Simulate faults using bit-parallelism.
+    """
     SERIAL = "serial"
     PARALLEL = "bit-parallel"
 
+
 @dataclass
 class FaultSimulationReport:
+    """
+    Report object for fault simulation results.
+    Attributes:
+        mode: Simulation mode used.
+        vector: Input vector applied.
+        detected_faults: List of detected faults.
+        undetected_faults: List of undetected faults.
+        simulated_faults: All faults simulated.
+        propagation_map: Mapping of faults to output propagation.
+    """
     mode: SimulationMode
     vector: Dict[str, int]
     detected_faults: List[Fault]
@@ -22,12 +39,22 @@ class FaultSimulationReport:
     propagation_map: Dict[Fault, List[str]]
 
 
+
 class FaultSimulator:
-    """Serial and bit-parallel single stuck-at fault simulation."""
+    """
+    Serial and bit-parallel single stuck-at fault simulation engine.
+    Simulates faults in a circuit using two modes for efficiency.
+    """
 
     WORD_SIZE = 64
 
     def __init__(self, circuit: Circuit, collapse_result: CollapseResult):
+        """
+        Initialize the simulator with a circuit and fault collapsing result.
+        Args:
+            circuit: Circuit to simulate.
+            collapse_result: Result of fault collapsing.
+        """
         self.circuit = circuit
         self.collapse_result = collapse_result
         self._collapsed_faults = collapse_result.collapsed_faults
@@ -41,6 +68,15 @@ class FaultSimulator:
         vector: Dict[str, int],
         faults: Sequence[Fault] | None = None,
     ) -> FaultSimulationReport:
+        """
+        Run fault simulation for the given input vector and faults.
+        Args:
+            mode: Simulation mode (serial or parallel).
+            vector: Input vector to apply.
+            faults: Optional list of faults to simulate (defaults to collapsed faults).
+        Returns:
+            FaultSimulationReport: Results of the simulation.
+        """
         simulation_faults = list(faults) if faults is not None else self._faults
         good_values = self._evaluate_good(vector)
         if mode == SimulationMode.SERIAL:
@@ -58,6 +94,9 @@ class FaultSimulator:
             vector=vector,
             detected_faults=detected,
             undetected_faults=undetected,
+            simulated_faults=simulation_faults,
+            propagation_map=propagation_map
+        )
             simulated_faults=simulation_faults,
             propagation_map=propagation_map,
         )

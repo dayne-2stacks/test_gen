@@ -8,7 +8,17 @@ from models import Fault
 from utils import AtpgEngine, TestVector
 
 
+
 def _prompt_fault(circuit, collapse_result) -> Optional[Fault]:
+    """
+    Prompt the user to select a fault from the collapsed fault set.
+    Validates input and returns the representative fault.
+    Args:
+        circuit: Circuit object.
+        collapse_result: Result of fault collapsing.
+    Returns:
+        Fault: Representative fault selected by user, or None if cancelled.
+    """
     total = len(collapse_result.collapsed_faults)
     preview = ", ".join(str(f) for f in collapse_result.collapsed_faults[:8])
     if preview:

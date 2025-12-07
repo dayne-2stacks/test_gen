@@ -7,28 +7,50 @@ from typing import Dict, List, Optional
 from models import Circuit, Fault
 from models import SignalValue, signal_and, signal_or
 
+
 class DAlgorithmEngine:
-    """Source-level D-Algorithm engine ported from the reference implementation."""
+    """
+    Source-level D-Algorithm engine ported from the reference implementation.
+    Implements the D-Algorithm for automatic test pattern generation (ATPG).
+    """
 
     def __init__(self, circuit: Circuit):
+        """
+        Initialize the D-Algorithm engine with a circuit.
+        Args:
+            circuit: Circuit object to operate on.
+        """
         self.circuit = circuit
         self._topo_order = self._compute_topological_order()
         self._fault: Optional[Fault] = None
 
     def find_test(self, fault: Fault, *, max_depth: int = 500) -> Optional[Dict[str, int]]:
+        """
+        Attempt to find a test vector that detects the given fault.
+        Args:
+            fault: Fault to target.
+            max_depth: Maximum recursion depth.
+        Returns:
+            Optional[Dict[str, int]]: Test vector if found, else None.
+        """
+        # Initialize all net values to unknown (X)
         values = {name: SignalValue.X for name in self.circuit.nets}
         self._fault = fault
         good_value = SignalValue.ZERO if fault.stuck_at == 1 else SignalValue.ONE
 
+        # If fault is on a primary input, set its value
         if fault.net in self.circuit.primary_inputs:
             values[fault.net] = good_value
         else:
+            # Otherwise, justify the gate output
             if not self._justify_gate_output(fault.net, good_value, values):
                 self._fault = None
                 return None
 
+        # If fault is on the stem, set D or D_BAR value
         if fault.sink is None:
             values[fault.net] = SignalValue.D if fault.stuck_at == 0 else SignalValue.D_BAR
+        # Recursively search for a test vector
         success = self._d_alg_recursive(values, fault, depth=0, max_depth=max_depth)
         vector = self._extract_vector(values) if success else None
         self._fault = None
@@ -41,23 +63,37 @@ class DAlgorithmEngine:
         depth: int,
         max_depth: int,
     ) -> bool:
+        """
+        Recursive core of the D-Algorithm search.
+        Args:
+            values: Current net values.
+            fault: Target fault.
+            depth: Current recursion depth.
+            max_depth: Maximum allowed depth.
+        Returns:
+            bool: True if a test vector is found, False otherwise.
+        """
         if depth > max_depth:
             return False
 
+        # Check if current assignment is valid
         if not self._imply_check(values, fault):
             return False
 
+        # If error not at primary output, propagate further
         if not self._error_at_po(values):
             frontier = self._get_d_frontier(values)
             if not frontier:
                 return False
 
+            # Try each gate in the D-frontier
             for gate_name in frontier:
                 gate = self.circuit.gates.get(gate_name)
                 if gate is None:
                     continue
                 saved = dict(values)
                 ctrl = self._get_controlling(gate.type.lower())
+        # ...existing code...
 
                 if ctrl is None:
                     if self._d_alg_recursive(values, fault, depth + 1, max_depth):

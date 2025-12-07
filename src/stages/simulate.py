@@ -3,18 +3,27 @@ from models import Fault
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
+
 def _print_primary_output_values(
     circuit,
     simulator: FaultSimulator,
     vector: Dict[str, int],
     observed_outputs: Optional[Dict[str, int]] = None,
 ) -> None:
+    """
+    Print the expected and observed values for all primary outputs for a given test vector.
+    Args:
+        circuit: Circuit object.
+        simulator: FaultSimulator instance.
+        vector: Input vector applied to the circuit.
+        observed_outputs: Optional observed output values (if available).
+    """
     if circuit is None or not getattr(circuit, "primary_outputs", None):
         return
     if not vector:
         return
 
-    good_values = simulator._evaluate_good(vector) 
+    good_values = simulator._evaluate_good(vector)
     expected_outputs = {po: good_values.get(po, 0) for po in circuit.primary_outputs}
     outputs = observed_outputs or expected_outputs
 
@@ -24,7 +33,15 @@ def _print_primary_output_values(
         observed = outputs.get(po, expected)
         print(f"  {po}: expected={expected}, observed={observed}")
 
+
 def _write_simulation_results_to_file(circuit, report, simulator: FaultSimulator) -> None:
+    """
+    Write simulation results to an output file and print summary information.
+    Args:
+        circuit: Circuit object.
+        report: FaultSimulationReport containing results.
+        simulator: FaultSimulator instance.
+    """
     source = getattr(circuit, "source", None)
     if source:
         input_path = Path(source)

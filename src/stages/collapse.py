@@ -4,6 +4,16 @@ from stages.parse import read_netlist
 from pathlib import Path
 
 def perform_fault_collapsing(circuit, file_path):
+    """
+    Perform fault collapsing on the given circuit.
+    If the circuit is None, parse the netlist first.
+    Writes results to output files and prints summary information.
+    Args:
+        circuit: Circuit object (or None to parse from file_path).
+        file_path: Path to the netlist file.
+    Returns:
+        Tuple of (circuit, collapse_result).
+    """
     if circuit is None:
         print("Reading the input net-list...")
         circuit = read_netlist(file_path)
@@ -26,6 +36,7 @@ def perform_fault_collapsing(circuit, file_path):
     equivalence_lines = report.equivalence_lines()
     dominance_lines = report.dominance_lines()
 
+    # Print equivalence and dominance information
     if equivalence_lines:
         print("Equivalent fault classes:")
         for line in equivalence_lines:
@@ -35,6 +46,7 @@ def perform_fault_collapsing(circuit, file_path):
         for line in dominance_lines:
             print(f"  {line}")
 
+    # Write results to output files
     source = getattr(circuit, "source", None) or file_path
     if source:
         root_dir = Path(__file__).resolve().parents[2]

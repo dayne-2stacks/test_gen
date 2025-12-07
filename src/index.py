@@ -1,26 +1,34 @@
 import os
 import sys
 
+# Import stage handlers for each ATG processing step
 from stages import (
-    perform_fault_collapsing,
-    read_netlist,
-    run_boolean_satisfiability,
-    run_d_algorithm,
-    run_fault_simulation,
-    run_podem,
+    perform_fault_collapsing,  # Fault collapsing stage
+    read_netlist,              # Netlist parsing stage
+    run_boolean_satisfiability,# SAT-based test generation
+    run_d_algorithm,           # D-Algorithm test generation
+    run_fault_simulation,      # Fault simulation stage
+    run_podem,                 # PODEM test generation
 )
 from utils import Stage, StageManager
 
 import argparse
 
-# Extract CLI arguments
+# Extract CLI arguments for the ATG tool
 def parse_arguments():
+    """
+    Parse command-line arguments for the ATG script.
+    """
     parser = argparse.ArgumentParser(description="Automatic Test Generation (ATG) script.")
     parser.add_argument("--file", type=str, required=True, help="Path to the file.")
     return parser.parse_args()
 
 
 def main(file_path: str):
+    """
+    Main entrypoint for the ATG CLI. Initializes the stage manager and presents the user menu.
+    """
+    # Initialize the stage manager with handlers for each stage
     stage_manager = StageManager(
         file_path,
         {
@@ -32,6 +40,7 @@ def main(file_path: str):
             Stage.SAT: run_boolean_satisfiability,
         },
     )
+    # Main interactive loop for user input
     while True:
         print(" Welcome to Automatic Test Generation (ATG) by Dayne Guy and Lazar Lazarevic. ")
         print(" Please select one of the following options (<0-8>): ") 
@@ -46,10 +55,11 @@ def main(file_path: str):
         [7] Exit
         [8] Use a different input file
         """)
-        
+        # Get user input and map to stage
         user_input = ""
         try:
-            user_input = input("Enter a number (0-9): ")
+            user_input = input("Enter a number (0-8): ")
+            # Map menu to stage
             rerun_stage = {
                 "0": Stage.PARSE,
                 "1": Stage.COLLAPSE,
@@ -58,6 +68,7 @@ def main(file_path: str):
                 "5": Stage.PODEM,
                 "6": Stage.SAT,
             }.get(user_input)
+            # Based on input, run correct stage
             if user_input == "0":
                 print("Reading the input net-list...")
                 stage_manager.ensure(Stage.PARSE, force=rerun_stage == Stage.PARSE)

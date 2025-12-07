@@ -1,11 +1,12 @@
 """
 Fault collapsing utilities for single stuck-at faults.
 
-The implementation follows the standard two-phase approach:
+This module implements fault collapsing for ATPG. The process follows:
 1. Enumerate all single stuck-at faults (SA0 and SA1) on every net.
 2. Collapse equivalent faults using gate-specific equivalence rules.
 3. Drop dominated faults using simple dominance relationships.
 
+Each function and class is documented below for clarity.
 """
 from __future__ import annotations
 
@@ -17,6 +18,9 @@ from models import Circuit, Fault
 
 
 def _fault_sort_key(fault: Fault) -> tuple[str, str, int]:
+    """
+    Sorting key for faults: sorts by net, sink, and stuck-at value.
+    """
     return (fault.net, fault.sink or "", fault.stuck_at)
 
 
@@ -25,7 +29,6 @@ def _collapsed_fault_sets(
 ) -> tuple[Dict[Fault, List[Fault]], Dict[Fault, List[Fault]]]:
     """
     Build lookup tables for equivalence classes and dominance edges.
-
     Returns:
         groups: surviving representatives mapped to all equivalent faults.
         dominated: faults ultimately dominated by a surviving representative.
@@ -42,6 +45,9 @@ def _collapsed_fault_sets(
             rep_dominator[dominated_rep] = dominator_rep
 
     def _root(rep: Fault) -> Fault:
+        """
+        Find the root dominator for a representative fault.
+        """
         path = []
         while rep in rep_dominator:
             path.append(rep)
@@ -53,11 +59,13 @@ def _collapsed_fault_sets(
     groups: Dict[Fault, List[Fault]] = defaultdict(list)
     dominated_groups: Dict[Fault, List[Fault]] = defaultdict(list)
 
+    # Map faults to their equivalence class root
     for fault, eq_rep in fault_to_rep.items():
         root_rep = _root(eq_rep)
         if root_rep not in surviving_reps:
             continue
         if root_rep == eq_rep:
+            # ...existing code...
             groups[root_rep].append(fault)
         else:
             dominated_groups[root_rep].append(fault)

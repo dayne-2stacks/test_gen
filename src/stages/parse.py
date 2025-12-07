@@ -2,7 +2,15 @@ from core import log_stage_output
 from core.netlist_parser import NetlistParseError, parse_netlist
 
 
+
 def read_netlist(file_path: str):
+    """
+    Parse the netlist from the given file path and print summary information.
+    Args:
+        file_path: Path to the netlist file.
+    Returns:
+        Circuit object if parsing succeeds, else None.
+    """
     try:
         circuit = parse_netlist(file_path)
         print(f"Successfully parsed netlist from {file_path}")
@@ -15,10 +23,13 @@ def read_netlist(file_path: str):
     except NetlistParseError as e:
         print(f"Error parsing netlist: {e}")
         return None
-    
-    
-def _write_circuit_details(circuit):
 
+def _write_circuit_details(circuit):
+    """
+    Write a summary of the parsed circuit to an output file and print details.
+    Args:
+        circuit: Circuit object to summarize.
+    """
     source = getattr(circuit, "source", None) or "circuit"
     primary_inputs = ", ".join(circuit.primary_inputs) if circuit.primary_inputs else "-"
     primary_outputs = ", ".join(circuit.primary_outputs) if circuit.primary_outputs else "-"
@@ -30,10 +41,12 @@ def _write_circuit_details(circuit):
         f"Gates ({len(circuit.gates)}):",
     ]
 
+    # List all gates in the circuit
     for gate_name, gate in circuit.gates.items():
         inputs = ", ".join(gate.inputs) if gate.inputs else "-"
         lines.append(f"  {gate_name}: {gate.type}({inputs}) -> {gate.output}")
 
+    # Uncomment below to list all nets and their drivers/sinks
     # lines.append(f"Nets ({len(circuit.nets)}):")
     # for net_name, net in circuit.nets.items():
     #     driver = net.source or ("<PI>" if net.is_primary_input else "-")

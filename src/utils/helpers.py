@@ -13,8 +13,17 @@ from core import (
 from models import Circuit, Fault
 
 
+
 class Stage(Enum):
-    # Assign numbers to stages of processing
+    """
+    Enum for stages of ATG processing.
+    PARSE: Netlist parsing
+    COLLAPSE: Fault collapsing
+    SIMULATE: Fault simulation
+    D_ALGO: D-Algorithm ATPG
+    PODEM: PODEM ATPG
+    SAT: SAT-based ATPG
+    """
     PARSE = auto()
     COLLAPSE = auto()
     SIMULATE = auto()
@@ -23,20 +32,24 @@ class Stage(Enum):
     SAT = auto()
     
 # A class that manages all stages of the ATG program
+
 class StageManager:
+    """
+    Manages the workflow and state for all ATG stages.
+    Handles dependencies, state, and execution for each stage.
+    """
     def __init__(
         self,
         file_path: str,
         stage_handlers: Dict[Stage, Callable[..., Any]],
     ):
-        
-        # set file path environment
+        # Set file path environment
         self.file_path = file_path
-        # handle the case where a stage handler is not defined
+        # Ensure all required stage handlers are provided
         missing = [stage.name for stage in Stage if stage not in stage_handlers]
         if missing:
             raise ValueError(f"Missing handlers for stages: {', '.join(missing)}")
-       
+
         # Handlers for each stage
         self._parse_handler = stage_handlers[Stage.PARSE]
         self._collapse_handler = stage_handlers[Stage.COLLAPSE]
@@ -44,16 +57,16 @@ class StageManager:
         self._d_algorithm_handler = stage_handlers[Stage.D_ALGO]
         self._podem_handler = stage_handlers[Stage.PODEM]
         self._sat_handler = stage_handlers[Stage.SAT]
-        
-        # Internal state
+
+        # Internal state for each stage
         self._circuit = None
         self._collapse_result = None
         self._simulation_result = None
         self._podem_result = None
         self._sat_result = None
         self._d_algorithm_result = None
-        
-        # What each stage needs before it can be successfully ran
+
+        # Dependencies required before running each stage
         self._dependencies: Dict[Stage, tuple[Stage, ...]] = {
             Stage.COLLAPSE: (Stage.PARSE,),
             Stage.SIMULATE: (Stage.COLLAPSE,),

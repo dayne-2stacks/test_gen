@@ -6,14 +6,28 @@ from typing import Dict, Iterable, List
 from models import Circuit, Gate, Net
 
 
+
 class NetlistParseError(RuntimeError):
-    """Raised when the netlist contains malformed statements."""
+    """
+    Raised when the netlist contains malformed statements.
+    Used to signal parsing errors in benchmark files.
+    """
 
 
 class NetlistParser:
-    """Pure parsing logic for benchmark circuit netlists."""
+    """
+    Pure parsing logic for benchmark circuit netlists.
+    Responsible for reading netlist files and converting them into Circuit objects.
+    """
 
     def parse_file(self, path: str | Path) -> Circuit:
+        """
+        Parse a netlist file from disk and return a Circuit object.
+        Args:
+            path: Path to the netlist file.
+        Returns:
+            Circuit: Parsed circuit.
+        """
         path = Path(path)
         lines = self._read_lines(path)
         circuit = self.parse_lines(lines)
@@ -21,6 +35,13 @@ class NetlistParser:
         return circuit
 
     def parse_lines(self, lines: Iterable[str]) -> Circuit:
+        """
+        Parse netlist lines and build Circuit data structures.
+        Args:
+            lines: Iterable of netlist lines.
+        Returns:
+            Circuit: Parsed circuit.
+        """
         nets: Dict[str, Net] = {}
         gates: Dict[str, Gate] = {}
         primary_inputs: List[str] = []
@@ -28,8 +49,10 @@ class NetlistParser:
         pi_set: set[str] = set()
         po_set: set[str] = set()
 
+        # Iterate through each line in the netlist
         for line_no, raw_line in enumerate(lines, start=1):
             stripped = raw_line.strip()
+            # Skip empty lines and comments
             if not stripped or stripped.startswith("$"):
                 continue
 
@@ -44,19 +67,23 @@ class NetlistParser:
             comment_lower = comment.lower()
             identifier = tokens[0]
 
+            # Handle primary input declaration
             if "primary input" in comment_lower:
                 net = nets.setdefault(identifier, Net(name=identifier))
+                # Error if net already has a source and is not marked as PI
                 if net.source is not None and not net.is_primary_input:
                     raise NetlistParseError(
                         f"Line {line_no}: primary input '{identifier}' is already driven "
                         f"by gate '{net.source}'."
                     )
+                # Add to primary input list if not already present
                 if identifier not in pi_set:
                     primary_inputs.append(identifier)
                     pi_set.add(identifier)
                 net.is_primary_input = True
                 net.source = None
                 continue
+        # ...existing code...
 
             if "primary output" in comment_lower:
                 net = nets.setdefault(identifier, Net(name=identifier))

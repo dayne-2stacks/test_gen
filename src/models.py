@@ -1,62 +1,103 @@
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Dict,  List, Optional
 from enum import Enum
 
-# Core data structures the rest of the tool uses to describe a circuit and its faults.
+# Core data structures for representing a digital circuit and its faults.
+
 @dataclass
 class Net:
-    """A signal in the circuit."""
-
+    """
+    Represents a signal net in the circuit.
+    Attributes:
+        name: Net name.
+        source: Gate driving this net (None if primary input).
+        sinks: List of gates that use this net as input.
+        is_primary_input: True if net is a primary input.
+        is_primary_output: True if net is a primary output.
+    """
     name: str
-    source: Optional[str] = None  # Which gate drives this net, none if primary input
-    sinks: List[str] = field(default_factory=list)  # gates that use this net
+    source: Optional[str] = None
+    sinks: List[str] = field(default_factory=list)
     is_primary_input: bool = False
     is_primary_output: bool = False
 
     def add_sink(self, gate_name: str) -> None:
-        """Register that `gate_name` reads this net."""
-        # Keep track of the sink list of each net
+        """
+        Register that `gate_name` reads this net.
+        Ensures sinks list is unique.
+        """
         if gate_name not in self.sinks:
-            self.sinks.append(gate_name)            
+            self.sinks.append(gate_name)
 
 @dataclass
 class Gate:
-    """A logic gate defined in the netlist."""
+    """
+    Represents a logic gate in the netlist.
+    Attributes:
+        name: Gate name.
+        type: Gate type (AND, OR, etc).
+        inputs: List of input net names.
+        output: Output net name.
+        level: Logic level (depth in circuit).
+        control: Controlling value for simulation.
+        inverted: True if gate inverts logic.
+        fault_list: Faults affecting this gate.
+    """
     name: str
     type: str
     inputs: List[str]
     output: str
-    level: Optional[int] = None  # depth of gate
-    control: Optional[int] = None  # controlling value used during simulation.
-    inverted: bool = False  # Marks gates that flip logic level for fault reasoning.
-    fault_list: Optional[List[Fault]] = None  # Faults affecting this gate's behavior.
+    level: Optional[int] = None
+    control: Optional[int] = None
+    inverted: bool = False
+    fault_list: Optional[List['Fault']] = None
 
 @dataclass
 class Circuit:
-    """Container for all parsed circuit elements."""
+    """
+    Container for all parsed circuit elements.
+    Attributes:
+        nets: Mapping of net names to Net objects.
+        gates: Mapping of gate names to Gate objects.
+        primary_inputs: List of primary input net names.
+        primary_outputs: List of primary output net names.
+        source: Source file path.
+        fault_list: All faults in the circuit.
+    """
     nets: Dict[str, Net]
     gates: Dict[str, Gate]
     primary_inputs: List[str]
     primary_outputs: List[str]
     source: Optional[str] = None
-    fault_list: Optional[List[Fault]] = None  # All faults defined anywhere in the circuit.
+    fault_list: Optional[List['Fault']] = None
 
     def net(self, name: str) -> Net:
-        # helper to fetch a net by name.
+        """
+        Helper to fetch a net by name.
+        """
         return self.nets[name]
 
     def gate(self, name: str) -> Gate:
-        # helper to fetch a gate by name.
+        """
+        Helper to fetch a gate by name.
+        """
         return self.gates[name]
 
 @dataclass(frozen=True)
 class Fault:
-    """Represents a single stuck-at fault on a net."""
+    """
+    Represents a single stuck-at fault on a net.
+    Attributes:
+        net: Net name where fault occurs.
+        stuck_at: Fault value (0 or 1).
+        sink: Specific fanout branch (None means stem/net).
+    """
     net: str
-    stuck_at: int  # 0 or 1
-    sink: Optional[str] = None  # Specific fanout branch; None means the net/stem
+    stuck_at: int
+    sink: Optional[str] = None
 
     def __str__(self) -> str:
         location = f"{self.net}->{self.sink}" if self.sink else self.net

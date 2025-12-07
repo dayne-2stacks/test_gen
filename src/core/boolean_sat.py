@@ -1,3 +1,4 @@
+# Implements Boolean SAT solving for circuit fault analysis and test pattern generation.
 from __future__ import annotations
 
 from itertools import combinations
@@ -9,30 +10,61 @@ from z3 import Bool, Not, Or, Solver, is_true, sat
 Clause = List[int]
 
 
+
 def _literal_satisfied(literal: int, assignment: Dict[int, bool]) -> bool:
-    """Return whether a literal is true under the given partial assignment."""
+    """
+    Return whether a literal is true under the given partial assignment.
+    Args:
+        literal: Integer representing a literal (positive or negative variable).
+        assignment: Mapping from variable index to boolean value.
+    Returns:
+        bool: True if literal is satisfied, False otherwise.
+    """
     value = assignment.get(abs(literal), False)
     return value if literal > 0 else not value
 
-
 def _clauses_satisfied(clauses: List[Clause], assignment: Dict[int, bool]) -> bool:
+    """
+    Check if all clauses are satisfied by the given assignment.
+    Args:
+        clauses: List of clauses (each clause is a list of literals).
+        assignment: Variable assignment.
+    Returns:
+        bool: True if all clauses are satisfied.
+    """
     return all(any(_literal_satisfied(lit, assignment) for lit in clause) for clause in clauses)
 
-
 def _generate_clause_library() -> List[Clause]:
+    """
+    Generate a library of example clauses for SAT problems.
+    Returns:
+        List[Clause]: List of clauses.
+    """
     base_literals = [1, -1, 2, -2]
     library: List[Clause] = [[lit] for lit in base_literals]
     library.extend([list(combo) for combo in combinations(base_literals, 2)])
     return library
 
-
 class Z3Solver:
-    """CNF solver backed by Z3 for faster SAT queries."""
+    """
+    CNF solver backed by Z3 for faster SAT queries.
+    Wraps Z3 to solve SAT problems represented as lists of clauses.
+    """
 
     def __init__(self, clauses: List[Clause]):
+        """
+        Initialize the solver with a set of clauses.
+        Args:
+            clauses: List of clauses (each clause is a list of literals).
+        """
         self._clauses = clauses
 
     def solve(self) -> Optional[Dict[int, bool]]:
+        """
+        Attempt to solve the SAT problem.
+        Returns:
+            Optional[Dict[int, bool]]: Satisfying assignment if one exists, else None.
+        """
         if not self._clauses:
             return {}
 
@@ -40,12 +72,16 @@ class Z3Solver:
         var_cache: Dict[int, Bool] = {}
 
         def get_var(idx: int) -> Bool:
+            """
+            Get or create a Z3 boolean variable for the given index.
+            """
             existing = var_cache.get(idx)
             if existing is None:
                 existing = Bool(f"v{idx}")
                 var_cache[idx] = existing
             return existing
 
+        # Add each clause to the Z3 solver
         for clause in self._clauses:
             if not clause:
                 return None
@@ -55,8 +91,10 @@ class Z3Solver:
             ]
             solver.add(Or(*z3_clause))
 
+        # Check satisfiability
         if solver.check() != sat:
             return None
+        # ...existing code...
 
         model = solver.model()
         assignment: Dict[int, bool] = {}

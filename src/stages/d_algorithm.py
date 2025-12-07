@@ -7,7 +7,17 @@ from utils import AtpgEngine, TestVector
 
 # TODO: # TODO: investigate why d-alg cannot detect 3gat->7gat-SA-0, 3gat->7gat-SA-1, 5gat-SA-0 in t4_21 circuit when you could easily find that input XX110 detects it
 
+
 def _prompt_fault(circuit, collapse_result) -> Optional[Fault]:
+    """
+    Prompt the user to select a fault from the collapsed fault set.
+    Validates input and returns the representative fault.
+    Args:
+        circuit: Circuit object.
+        collapse_result: Result of fault collapsing.
+    Returns:
+        Fault: Representative fault selected by user, or None if cancelled.
+    """
     total = len(collapse_result.collapsed_faults)
     preview = ", ".join(str(f) for f in collapse_result.collapsed_faults[:8])
     if preview:
