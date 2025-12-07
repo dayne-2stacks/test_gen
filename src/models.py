@@ -11,12 +11,6 @@ from enum import Enum
 class Net:
     """
     Represents a signal net in the circuit.
-    Attributes:
-        name: Net name.
-        source: Gate driving this net (None if primary input).
-        sinks: List of gates that use this net as input.
-        is_primary_input: True if net is a primary input.
-        is_primary_output: True if net is a primary output.
     """
     name: str
     source: Optional[str] = None
@@ -27,7 +21,6 @@ class Net:
     def add_sink(self, gate_name: str) -> None:
         """
         Register that `gate_name` reads this net.
-        Ensures sinks list is unique.
         """
         if gate_name not in self.sinks:
             self.sinks.append(gate_name)
@@ -36,15 +29,6 @@ class Net:
 class Gate:
     """
     Represents a logic gate in the netlist.
-    Attributes:
-        name: Gate name.
-        type: Gate type (AND, OR, etc).
-        inputs: List of input net names.
-        output: Output net name.
-        level: Logic level (depth in circuit).
-        control: Controlling value for simulation.
-        inverted: True if gate inverts logic.
-        fault_list: Faults affecting this gate.
     """
     name: str
     type: str
@@ -59,13 +43,6 @@ class Gate:
 class Circuit:
     """
     Container for all parsed circuit elements.
-    Attributes:
-        nets: Mapping of net names to Net objects.
-        gates: Mapping of gate names to Gate objects.
-        primary_inputs: List of primary input net names.
-        primary_outputs: List of primary output net names.
-        source: Source file path.
-        fault_list: All faults in the circuit.
     """
     nets: Dict[str, Net]
     gates: Dict[str, Gate]
@@ -90,10 +67,6 @@ class Circuit:
 class Fault:
     """
     Represents a single stuck-at fault on a net.
-    Attributes:
-        net: Net name where fault occurs.
-        stuck_at: Fault value (0 or 1).
-        sink: Specific fanout branch (None means stem/net).
     """
     net: str
     stuck_at: int

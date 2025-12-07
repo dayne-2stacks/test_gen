@@ -6,13 +6,6 @@ from pathlib import Path
 def perform_fault_collapsing(circuit, file_path):
     """
     Perform fault collapsing on the given circuit.
-    If the circuit is None, parse the netlist first.
-    Writes results to output files and prints summary information.
-    Args:
-        circuit: Circuit object (or None to parse from file_path).
-        file_path: Path to the netlist file.
-    Returns:
-        Tuple of (circuit, collapse_result).
     """
     if circuit is None:
         print("Reading the input net-list...")

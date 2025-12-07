@@ -1,13 +1,4 @@
-"""
-Fault collapsing utilities for single stuck-at faults.
 
-This module implements fault collapsing for ATPG. The process follows:
-1. Enumerate all single stuck-at faults (SA0 and SA1) on every net.
-2. Collapse equivalent faults using gate-specific equivalence rules.
-3. Drop dominated faults using simple dominance relationships.
-
-Each function and class is documented below for clarity.
-"""
 from __future__ import annotations
 
 from collections import defaultdict
@@ -29,9 +20,6 @@ def _collapsed_fault_sets(
 ) -> tuple[Dict[Fault, List[Fault]], Dict[Fault, List[Fault]]]:
     """
     Build lookup tables for equivalence classes and dominance edges.
-    Returns:
-        groups: surviving representatives mapped to all equivalent faults.
-        dominated: faults ultimately dominated by a surviving representative.
     """
     fault_to_rep = result.fault_to_representative
     surviving_reps = {cls.representative for cls in result.classes}
@@ -46,7 +34,7 @@ def _collapsed_fault_sets(
 
     def _root(rep: Fault) -> Fault:
         """
-        Find the root dominator for a representative fault.
+        Find the dominator for a representative fault.
         """
         path = []
         while rep in rep_dominator:
@@ -65,7 +53,6 @@ def _collapsed_fault_sets(
         if root_rep not in surviving_reps:
             continue
         if root_rep == eq_rep:
-            # ...existing code...
             groups[root_rep].append(fault)
         else:
             dominated_groups[root_rep].append(fault)

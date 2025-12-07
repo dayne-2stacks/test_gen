@@ -8,14 +8,11 @@ from models import Circuit, Fault, Gate
 class PodemEngine:
     """
     PODEM test generation for single stuck-at faults.
-    Implements the PODEM algorithm for ATPG.
     """
 
     def __init__(self, circuit: Circuit):
         """
         Initialize the PODEM engine with a circuit.
-        Args:
-            circuit: Circuit object to operate on.
         """
         self.circuit = circuit
         self._topological_order = self._topological_sort()
@@ -23,10 +20,6 @@ class PodemEngine:
     def find_test(self, fault: Fault) -> Optional[Dict[str, int]]:
         """
         Attempt to find a test vector that detects the given fault using PODEM.
-        Args:
-            fault: Fault to target.
-        Returns:
-            Optional[Dict[str, int]]: Test vector if found, else None.
         """
         assignments: Dict[str, int] = {}
         seen_states: Set[FrozenSet[Tuple[str, int]]] = set()
@@ -48,13 +41,6 @@ class PodemEngine:
     ) -> bool:
         """
         Recursive core of the PODEM search.
-        Args:
-            assignments: Current PI assignments.
-            values: Current net values.
-            fault: Target fault.
-            seen_states: Set of visited assignment states.
-        Returns:
-            bool: True if a test vector is found, False otherwise.
         """
         if not values:
             return False
@@ -85,7 +71,6 @@ class PodemEngine:
         objective = self._get_objective(values, fault, sentinel)
         if objective is None:
             return False
-        # ...existing code...
 
         objective_net, objective_val = objective
         pi, pi_val = self._backtrace(objective_net, objective_val, values, assignments)

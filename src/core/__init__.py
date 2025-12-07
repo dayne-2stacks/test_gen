@@ -1,4 +1,3 @@
-# Initializes the core engine package for fault simulation, collapsing, SAT solving, and parsing.
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,7 +5,7 @@ from typing import Iterable
 
 from .boolean_sat import SatAtpg
 from .fault_collapsing import CollapseResult, FaultClass, FaultCollapser
-from .fault_simulation import FaultSimulationReport, FaultSimulator, SimulationMode
+from .fault_simulation import FaultSimulationReport, FaultSimulator
 from .d_algorithm import DAlgorithmEngine
 from .podem import PodemEngine
 from .netlist_parser import NetlistParseError, NetlistParser, parse_netlist
@@ -19,7 +18,6 @@ __all__ = [
     "CollapseResult",         # Result of fault collapsing
     "FaultClass",             # Fault equivalence class
     "FaultSimulator",         # Fault simulation engine
-    "SimulationMode",         # Simulation mode enum
     "FaultSimulationReport",  # Fault simulation report
     "DAlgorithmEngine",       # D-Algorithm ATPG engine
     "PodemEngine",            # PODEM ATPG engine
@@ -35,15 +33,13 @@ _OUTPUT_ROOT = _PROJECT_ROOT / "outputs"
 
 def _sanitize_stage_name(name: str) -> str:
     """
-    Sanitize a stage name for use in output filenames.
-    Replaces non-alphanumeric characters with underscores.
+    Splits stage name to store output
     """
     return "".join(ch if ch.isalnum() or ch in {"_", "-"} else "_" for ch in name)
 
 def _circuit_output_dir(circuit_source: str | Path) -> Path:
     """
-    Get the output directory for a given circuit source.
-    Creates the directory if it does not exist.
+    Creates dir for circuit outputs
     """
     circuit_path = Path(circuit_source)
     circuit_name = circuit_path.name or circuit_path.stem or "circuit"
@@ -57,13 +53,7 @@ def log_stage_output(
     lines: Iterable[str],
 ) -> Path:
     """
-    Write a stage summary to outputs/<circuit>/<stage_name>.txt.
-    Args:
-        circuit_source: Source file for the circuit.
-        stage_name: Name of the processing stage.
-        lines: Iterable of lines to write.
-    Returns:
-        Path to the output file written.
+    Log outputs of each stage
     """
     _OUTPUT_ROOT.mkdir(exist_ok=True)
     stage_file = _circuit_output_dir(circuit_source) / (

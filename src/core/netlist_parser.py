@@ -10,23 +10,17 @@ from models import Circuit, Gate, Net
 class NetlistParseError(RuntimeError):
     """
     Raised when the netlist contains malformed statements.
-    Used to signal parsing errors in benchmark files.
     """
 
 
 class NetlistParser:
     """
-    Pure parsing logic for benchmark circuit netlists.
     Responsible for reading netlist files and converting them into Circuit objects.
     """
 
     def parse_file(self, path: str | Path) -> Circuit:
         """
         Parse a netlist file from disk and return a Circuit object.
-        Args:
-            path: Path to the netlist file.
-        Returns:
-            Circuit: Parsed circuit.
         """
         path = Path(path)
         lines = self._read_lines(path)
@@ -37,10 +31,6 @@ class NetlistParser:
     def parse_lines(self, lines: Iterable[str]) -> Circuit:
         """
         Parse netlist lines and build Circuit data structures.
-        Args:
-            lines: Iterable of netlist lines.
-        Returns:
-            Circuit: Parsed circuit.
         """
         nets: Dict[str, Net] = {}
         gates: Dict[str, Gate] = {}
@@ -83,7 +73,6 @@ class NetlistParser:
                 net.is_primary_input = True
                 net.source = None
                 continue
-        # ...existing code...
 
             if "primary output" in comment_lower:
                 net = nets.setdefault(identifier, Net(name=identifier))

@@ -10,15 +10,12 @@ from models import SignalValue, signal_and, signal_or
 
 class DAlgorithmEngine:
     """
-    Source-level D-Algorithm engine ported from the reference implementation.
     Implements the D-Algorithm for automatic test pattern generation (ATPG).
     """
 
     def __init__(self, circuit: Circuit):
         """
         Initialize the D-Algorithm engine with a circuit.
-        Args:
-            circuit: Circuit object to operate on.
         """
         self.circuit = circuit
         self._topo_order = self._compute_topological_order()
@@ -27,11 +24,6 @@ class DAlgorithmEngine:
     def find_test(self, fault: Fault, *, max_depth: int = 500) -> Optional[Dict[str, int]]:
         """
         Attempt to find a test vector that detects the given fault.
-        Args:
-            fault: Fault to target.
-            max_depth: Maximum recursion depth.
-        Returns:
-            Optional[Dict[str, int]]: Test vector if found, else None.
         """
         # Initialize all net values to unknown (X)
         values = {name: SignalValue.X for name in self.circuit.nets}
@@ -65,13 +57,6 @@ class DAlgorithmEngine:
     ) -> bool:
         """
         Recursive core of the D-Algorithm search.
-        Args:
-            values: Current net values.
-            fault: Target fault.
-            depth: Current recursion depth.
-            max_depth: Maximum allowed depth.
-        Returns:
-            bool: True if a test vector is found, False otherwise.
         """
         if depth > max_depth:
             return False
@@ -93,7 +78,6 @@ class DAlgorithmEngine:
                     continue
                 saved = dict(values)
                 ctrl = self._get_controlling(gate.type.lower())
-        # ...existing code...
 
                 if ctrl is None:
                     if self._d_alg_recursive(values, fault, depth + 1, max_depth):

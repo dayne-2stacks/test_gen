@@ -8,7 +8,6 @@ from core import (
     FaultSimulator,
     PodemEngine,
     SatAtpg,
-    SimulationMode,
 )
 from models import Circuit, Fault
 
@@ -16,13 +15,7 @@ from models import Circuit, Fault
 
 class Stage(Enum):
     """
-    Enum for stages of ATG processing.
-    PARSE: Netlist parsing
-    COLLAPSE: Fault collapsing
-    SIMULATE: Fault simulation
-    D_ALGO: D-Algorithm ATPG
-    PODEM: PODEM ATPG
-    SAT: SAT-based ATPG
+    Number stages of ATG processing.
     """
     PARSE = auto()
     COLLAPSE = auto()
@@ -35,8 +28,7 @@ class Stage(Enum):
 
 class StageManager:
     """
-    Manages the workflow and state for all ATG stages.
-    Handles dependencies, state, and execution for each stage.
+    Manages the workflow and state for all ATG stages. Handles dependencies, state, and execution for each stage.
     """
     def __init__(
         self,
@@ -275,7 +267,7 @@ class AtpgEngine:
         else:
             faults = [target]
 
-        report = self._simulator.run(SimulationMode.PARALLEL, vector, faults=faults)
+        report = self._simulator.run(vector, faults=faults)
         return tuple(report.detected_faults)
 
     def _representative(self, fault: Fault) -> Fault:

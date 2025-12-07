@@ -1,4 +1,4 @@
-from core.fault_simulation import FaultSimulationReport, FaultSimulator, SimulationMode
+from core.fault_simulation import FaultSimulationReport, FaultSimulator
 from models import Fault
 from pathlib import Path
 from typing import Dict, List, Optional, Set
@@ -12,11 +12,6 @@ def _print_primary_output_values(
 ) -> None:
     """
     Print the expected and observed values for all primary outputs for a given test vector.
-    Args:
-        circuit: Circuit object.
-        simulator: FaultSimulator instance.
-        vector: Input vector applied to the circuit.
-        observed_outputs: Optional observed output values (if available).
     """
     if circuit is None or not getattr(circuit, "primary_outputs", None):
         return
@@ -37,10 +32,6 @@ def _print_primary_output_values(
 def _write_simulation_results_to_file(circuit, report, simulator: FaultSimulator) -> None:
     """
     Write simulation results to an output file and print summary information.
-    Args:
-        circuit: Circuit object.
-        report: FaultSimulationReport containing results.
-        simulator: FaultSimulator instance.
     """
     source = getattr(circuit, "source", None)
     if source:
@@ -52,7 +43,7 @@ def _write_simulation_results_to_file(circuit, report, simulator: FaultSimulator
     else:
         output_path = Path("simulation_results.out")
 
-    mode_label = "Serial" if report.mode == SimulationMode.SERIAL else "Bit-parallel"
+    mode_label = "Serial"
     vector_summary = (
         ", ".join(f"{pi}={val}" for pi, val in report.vector.items())
         if report.vector
@@ -147,21 +138,6 @@ def _write_simulation_results_to_file(circuit, report, simulator: FaultSimulator
     output_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"Simulation results written to {output_path}")
 
-def prompt_simulation_mode():
-    print("""
-        Fault Simulation Options:
-        [0] Serial fault simulation
-        [1] Bit-parallel fault simulation
-        [2] Return to main menu
-        """)
-    selection = input("Select simulation mode (0-2): ").strip()
-    if selection == "0":
-        return SimulationMode.SERIAL
-    if selection == "1":
-        return SimulationMode.PARALLEL
-    return None
-
-
 def prompt_simulation_scope():
     print("""
         Fault Scope:
@@ -201,13 +177,12 @@ def prompt_input_vector(primary_inputs):
 
 
 def display_simulation_summary(report):
-    mode_label = "Serial" if report.mode == SimulationMode.SERIAL else "Bit-parallel"
     vector_summary = (
         ", ".join(f"{pi}={val}" for pi, val in report.vector.items())
         if report.vector
         else "<empty>"
     )
-    print(f"{mode_label} simulation complete using vector: {vector_summary}")
+    print(f"Serial simulation complete using vector: {vector_summary}")
     total_faults = len(report.simulated_faults)
     print(
         f"Detected {len(report.detected_faults)} of {total_faults} simulated fault classes."
@@ -342,17 +317,12 @@ def run_fault_simulation(circuit, collapse_result):
             return None
         fault_targets = selected_faults or []
 
-    mode = prompt_simulation_mode()
-    if mode is None:
-        print("Simulation cancelled.")
-        return None
-
     vector = prompt_input_vector(circuit.primary_inputs)
     if vector is None:
         print("Simulation cancelled.")
         return None
 
-    report = simulator.run(mode, vector, faults=fault_targets)
+    report = simulator.run(vector, faults=fault_targets)
     observed_outputs = None
     _print_primary_output_values(circuit, simulator, vector, observed_outputs)
     display_simulation_summary(report)
