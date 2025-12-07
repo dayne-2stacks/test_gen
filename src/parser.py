@@ -1,6 +1,4 @@
 """
-Netlist parser for the Automatic Test Generation (ATG) project.
-
 The parser represents the .ckt files as a collection of nets and gates with primary input and output annotations.
 """
 
@@ -21,25 +19,26 @@ class NetlistParser:
     """Netlist Parser for the benchmark circuit netlists."""
     
     def parse_file(self, path: str | Path) -> Circuit:
-        """Parse a netlist stored on disk."""
+        """Parse a netlist from a file"""
+        
+        # Create path
         path = Path(path)
+        # Try and open the path
         try:
             with path.open("r", encoding="utf-8") as file:
                 lines = file.readlines()
         except UnicodeDecodeError:
             with path.open("r", encoding="cp1252") as file:
                 lines = file.readlines()
+        # Parse lines into circuit
         circuit = self._parse_lines(lines)
+        # Set the source of the circuit to the file path
         circuit.source = str(path)
         return circuit
 
-    def parse(self, text: str, *, source: Optional[str] = None) -> Circuit:
-        """Parse a provided netlist"""
-        circuit = self._parse_lines(text.splitlines())
-        circuit.source = source
-        return circuit
-
+    # Helper to parse each individual lines
     def _parse_lines(self, lines: Iterable[str]) -> Circuit:
+        # circuit models
         nets: Dict[str, Net] = {}
         gates: Dict[str, Gate] = {}
         primary_inputs: List[str] = []
@@ -48,6 +47,7 @@ class NetlistParser:
         po_set: set[str] = set()
 
         for line_no, raw_line in enumerate(lines, start=1):
+            # For each line remove whitespace
             stripped = raw_line.strip()
             
             # Skip line if empty or comment only
@@ -166,7 +166,7 @@ def parse_netlist(path: str | Path) -> Circuit:
     """Initialize a parser and parse a netlist from disk."""
     return NetlistParser().parse_file(path)
 
-
+# Test that it works
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Parse a netlist file.")
