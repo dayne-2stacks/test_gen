@@ -22,12 +22,18 @@ Key Features
     - The list of detectable faults for a given test vector revealed by circuit simulation.
 
 
-On program invocation, the following interactive menu below is presented to the user:
-                    [0] Read the input net-list
-                    [1] Perform fault collapsing
-                    [2] List fault classes
-                    [3] Simulate
-                    [4] Generate tests (D-Algorithm)
-                    [5] Generate tests (PODEM)
-                    [6] Generate tests (Boolean Satisfaibility)
-                    [7] Exit
+On program invocation, the following interactive menu is presented:
+
+    [0] Read the input net-list
+    [1] Perform fault collapsing
+    [2] List fault classes
+    [3] Simulate
+    [4] Generate tests (D-Algorithm)
+    [5] Generate tests (PODEM)
+    [6] Generate tests (Boolean Satisfiability)
+    [7] Exit
+
+## 🎥 Demo Video
+[Click here to watch the demo](https://youtu.be/i25H0MwtwK0?si=1iBoG1MjhE3LkiL7)
+
+___
